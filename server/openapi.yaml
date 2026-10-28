@@ -1,0 +1,1638 @@
+openapi: 3.0.3
+info:
+  title: AI Internship Application Assistant API
+  version: 1.0.0
+  description: |
+    REST API for authentication, profiles, private resume management, job tracking,
+    explainable matching, AI-assisted application content, and a safe manual
+    application workflow. The API never submits applications automatically.
+servers:
+  - url: /api
+    description: Current origin
+  - url: https://YOUR-RENDER-SERVICE.onrender.com/api
+    description: Production (replace with your Render URL)
+tags:
+  - name: Health
+  - name: Auth
+  - name: Profile
+  - name: Resumes
+  - name: Jobs
+  - name: Applications
+  - name: AI
+  - name: Dashboard
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+        requestId:
+          type: string
+    Profile:
+      type: object
+      properties:
+        headline:
+          type: string
+        summary:
+          type: string
+        phone:
+          type: string
+        location:
+          type: string
+        portfolioUrl:
+          type: string
+        linkedinUrl:
+          type: string
+        githubUrl:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        education:
+          type: array
+          items:
+            type: object
+            properties:
+              institution:
+                type: string
+              degree:
+                type: string
+              field:
+                type: string
+              startYear:
+                type: integer
+              endYear:
+                type: integer
+              grade:
+                type: string
+        experience:
+          type: array
+          items:
+            type: object
+            properties:
+              company:
+                type: string
+              title:
+                type: string
+              startDate:
+                type: string
+              endDate:
+                type: string
+              current:
+                type: boolean
+              description:
+                type: string
+        projects:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+              technologies:
+                type: array
+                maxItems: 20
+                items:
+                  type: string
+              url:
+                type: string
+              accomplishments:
+                type: array
+                maxItems: 10
+                items:
+                  type: object
+                  properties:
+                    text:
+                      type: string
+                    verified:
+                      type: boolean
+                      description: Set only when the user confirmed the claim
+        certifications:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+              issuer:
+                type: string
+              issueDate:
+                type: string
+              expiryDate:
+                type: string
+              credentialId:
+                type: string
+              url:
+                type: string
+        achievements:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [title]
+            properties:
+              title:
+                type: string
+              issuer:
+                type: string
+              date:
+                type: string
+              description:
+                type: string
+        answerBank:
+          type: array
+          maxItems: 50
+          description: Reusable application answers. Only approved entries are offered in the preview.
+          items:
+            type: object
+            properties:
+              question:
+                type: string
+              answer:
+                type: string
+              approved:
+                type: boolean
+              approvedAt:
+                type: string
+                format: date-time
+        workAuthorization:
+          type: object
+          properties:
+            status:
+              type: string
+              enum:
+                - citizen
+                - permanent_resident
+                - work_visa
+                - student_visa
+                - requires_sponsorship
+                - other
+                - prefer_not_to_say
+            requiresSponsorship:
+              type: boolean
+            note:
+              type: string
+        preferredRoles:
+          type: array
+          items:
+            type: string
+        preferredLocations:
+          type: array
+          items:
+            type: string
+        jobPreferences:
+          type: object
+          properties:
+            jobTypes:
+              type: array
+              items:
+                type: string
+            remoteOnly:
+              type: boolean
+            workModes:
+              type: array
+              items:
+                type: string
+                enum: [onsite, hybrid, remote]
+            willRelocate:
+              type: boolean
+            availability:
+              type: string
+            noticePeriod:
+              type: string
+            minimumStipend:
+              type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        profile:
+          $ref: '#/components/schemas/Profile'
+        profileCompleteness:
+          type: object
+          properties:
+            percent:
+              type: integer
+            missing:
+              type: array
+              items:
+                type: string
+        hasResume:
+          type: boolean
+    TailoredResume:
+      type: object
+      properties:
+        id:
+          type: string
+        jobId:
+          type: string
+        baseResumeId:
+          type: string
+        revision:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [draft, approved]
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        provider:
+          type: string
+          enum: [heuristic, openai]
+        model:
+          type: string
+        notice:
+          type: string
+        content:
+          type: object
+          description: Snapshot of the tailored resume used for PDF/DOCX rendering
+        changes:
+          type: object
+          description: Prioritization and omission summary
+        diff:
+          type: object
+          description: Original vs tailored comparison used by the review UI
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              format:
+                type: string
+                enum: [pdf, docx]
+              fileName:
+                type: string
+              mimeType:
+                type: string
+              size:
+                type: integer
+              checksum:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+        downloads:
+          type: object
+          properties:
+            pdf:
+              type: string
+            docx:
+              type: string
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        company:
+          type: string
+        description:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        location:
+          type: string
+        jobType:
+          type: string
+          enum: [internship, full-time, part-time, contract, temporary, other]
+        remote:
+          type: boolean
+        source:
+          type: string
+          enum: [manual, remotive, url, jobicy, arbeitnow, greenhouse, lever, ashby, remoteok, adzuna]
+        applicationUrl:
+          type: string
+        postedAt:
+          type: string
+          format: date-time
+        applicationId:
+          type: string
+          nullable: true
+        applicationStatus:
+          type: string
+          nullable: true
+    Application:
+      type: object
+      properties:
+        id:
+          type: string
+        job:
+          $ref: '#/components/schemas/Job'
+        status:
+          type: string
+          enum: [saved, planned, in_progress, submitted, interview, rejected, offer]
+        notes:
+          type: string
+        coverLetter:
+          type: object
+          properties:
+            subject:
+              type: string
+            body:
+              type: string
+            provider:
+              type: string
+        submittedAt:
+          type: string
+          format: date-time
+        submissionMethod:
+          type: string
+          enum: [none, manual, assisted_manual]
+        statusHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              at:
+                type: string
+                format: date-time
+    Match:
+      type: object
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        method:
+          type: string
+          example: heuristic
+        matchedSkills:
+          type: array
+          items:
+            type: string
+        missingSkills:
+          type: array
+          items:
+            type: string
+        components:
+          type: object
+          properties:
+            skills:
+              type: integer
+            experience:
+              type: integer
+            role:
+              type: integer
+            location:
+              type: integer
+        experience:
+          type: object
+          properties:
+            userYears:
+              type: number
+            requiredYears:
+              type: number
+        reasons:
+          type: array
+          items:
+            type: string
+        suggestions:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+              detail:
+                type: string
+    CoverLetter:
+      type: object
+      properties:
+        subject:
+          type: string
+        body:
+          type: string
+        provider:
+          type: string
+          enum: [openai, template]
+        notice:
+          type: string
+  responses:
+    Unauthorized:
+      description: Missing, invalid, or revoked token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness check
+      security: []
+      responses:
+        '200':
+          description: API process is running
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness check including database state
+      security: []
+      responses:
+        '200':
+          description: Database connected
+        '503':
+          description: Database not ready
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create an account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Email already registered
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in and receive a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Signed in
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      responses:
+        '200':
+          description: Current user
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke all issued sessions
+      responses:
+        '200':
+          description: Signed out
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password and rotate sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+      responses:
+        '200':
+          description: Password changed and new token returned
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/me:
+    get:
+      tags: [Profile]
+      summary: Get the authenticated profile
+      responses:
+        '200':
+          description: Profile
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Profile]
+      summary: Update name and profile fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                profile:
+                  $ref: '#/components/schemas/Profile'
+      responses:
+        '200':
+          description: Updated profile
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /resumes:
+    post:
+      tags: [Resumes]
+      summary: Upload or replace a PDF/DOCX resume
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [resume]
+              properties:
+                resume:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Resume uploaded and parsed
+        '200':
+          description: Resume replaced
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '413':
+          description: File too large
+        '422':
+          description: Resume text could not be extracted
+  /resumes/me:
+    get:
+      tags: [Resumes]
+      summary: Get resume metadata, parsed data, and extracted text
+      responses:
+        '200':
+          description: Resume or null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [Resumes]
+      summary: Delete the stored resume
+      responses:
+        '200':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /resumes/me/file:
+    get:
+      tags: [Resumes]
+      summary: Download the authenticated user's resume
+      responses:
+        '200':
+          description: Private file download
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /resumes/me/extraction:
+    get:
+      tags: [Resumes]
+      summary: Review heuristically extracted resume data against the profile
+      description: >-
+        Returns proposals and a per-field comparison with the saved profile.
+        Nothing is written by this endpoint. Existing profile values that differ
+        are reported as conflicts so they are never replaced silently.
+      responses:
+        '200':
+          description: Extraction proposals, comparison, and conflicts
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: private, no-store
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /resumes/me/extraction/apply:
+    post:
+      tags: [Resumes]
+      summary: Apply reviewed extraction data to the profile
+      description: >-
+        Requires `reviewed: true`. Existing non-empty scalar profile values are
+        skipped and reported unless `overwriteVerified: true` is sent. Skills and
+        entries merge additively; nothing is deleted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reviewed]
+              properties:
+                reviewed:
+                  type: boolean
+                  enum: [true]
+                overwriteVerified:
+                  type: boolean
+                  default: false
+                fields:
+                  type: object
+                  properties:
+                    headline:
+                      type: string
+                    summary:
+                      type: string
+                    phone:
+                      type: string
+                    location:
+                      type: string
+                    portfolioUrl:
+                      type: string
+                    linkedinUrl:
+                      type: string
+                    githubUrl:
+                      type: string
+                skills:
+                  type: array
+                  items:
+                    type: string
+                projects:
+                  type: array
+                  items:
+                    type: object
+                certifications:
+                  type: array
+                  items:
+                    type: object
+                achievements:
+                  type: array
+                  items:
+                    type: object
+                education:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Updated user plus applied and skipped values
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tailored-resumes:
+    get:
+      tags: [Tailored resumes]
+      summary: List tailored resume revisions
+      parameters:
+        - in: query
+          name: jobId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Revisions ordered newest first, including file metadata
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Tailored resumes]
+      summary: Generate a tailored resume for a job
+      description: >-
+        Builds content from the verified profile only. Unverified accomplishments
+        are omitted. Creates a new revision and stores separate PDF and DOCX
+        files. The original resume is never modified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId]
+              properties:
+                jobId:
+                  type: string
+      responses:
+        '201':
+          description: Draft revision generated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: No readable original resume exists
+  /tailored-resumes/{id}:
+    get:
+      tags: [Tailored resumes]
+      summary: Get one tailored revision with content and diff
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tailored resume
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Tailored resumes]
+      summary: Edit a draft revision and rebuild both files
+      description: Approved revisions are locked and return 409.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: object
+                  description: Partial content; omitted fields keep their value
+      responses:
+        '200':
+          description: Updated draft
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Approved revisions are immutable
+  /tailored-resumes/{id}/approve:
+    post:
+      tags: [Tailored resumes]
+      summary: Explicitly approve a revision for application use
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved]
+              properties:
+                approved:
+                  type: boolean
+                  enum: [true]
+      responses:
+        '200':
+          description: Approved revision
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tailored-resumes/{id}/regenerate:
+    post:
+      tags: [Tailored resumes]
+      summary: Generate a new draft revision from the latest profile
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: New draft revision; earlier revisions are kept
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The linked job or original resume no longer exists
+  /tailored-resumes/{id}/download/{format}:
+    get:
+      tags: [Tailored resumes]
+      summary: Download a stored PDF or DOCX version
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: format
+          required: true
+          schema:
+            type: string
+            enum: [pdf, docx]
+      responses:
+        '200':
+          description: Private file download
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: List saved/imported jobs
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: location
+          schema:
+            type: string
+        - in: query
+          name: jobType
+          schema:
+            type: string
+        - in: query
+          name: remote
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [saved, planned, in_progress, submitted, interview, rejected, offer]
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [newest, oldest, title, company, postedAt]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Paginated jobs
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Jobs]
+      summary: Add a job manually
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, company, description, applicationUrl]
+              properties:
+                title:
+                  type: string
+                company:
+                  type: string
+                description:
+                  type: string
+                skills:
+                  type: array
+                  items:
+                    type: string
+                location:
+                  type: string
+                jobType:
+                  type: string
+                remote:
+                  type: boolean
+                applicationUrl:
+                  type: string
+                  format: uri
+      responses:
+        '201':
+          description: Job saved
+        '409':
+          description: Duplicate job
+  /jobs/discover:
+    get:
+      tags: [Jobs]
+      summary: Discover live jobs from one or more public job sources
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: location
+          description: >-
+            Filter matched against each listing's reported location. "india"
+            also matches major Indian cities and states.
+          schema:
+            type: string
+            example: india
+        - in: query
+          name: remote
+          description: Keep only remote (true) or non-remote (false) listings.
+          schema:
+            type: boolean
+        - in: query
+          name: jobType
+          schema:
+            type: string
+            enum: [internship, full-time, part-time, contract, temporary, other]
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - in: query
+          name: sources
+          description: Comma-separated source names. Defaults to JOB_DISCOVERY_SOURCES.
+          schema:
+            type: string
+            example: remotive,jobicy,arbeitnow
+        - in: query
+          name: greenhouse
+          description: Comma-separated Greenhouse board names.
+          schema:
+            type: string
+        - in: query
+          name: lever
+          description: Comma-separated Lever site names.
+          schema:
+            type: string
+        - in: query
+          name: ashby
+          description: Comma-separated Ashby organization names.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: >-
+            Merged, deduplicated listings plus a per-source status list. A
+            failing source is reported in `errors` without hiding other results.
+        '400':
+          description: Unknown source, or no boards configured for target sources
+        '503':
+          description: Every requested source failed (no fabricated data)
+  /jobs/import:
+    post:
+      tags: [Jobs]
+      summary: Import a discovered listing by provider id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalId]
+              properties:
+                externalId:
+                  type: string
+                  description: Provider id. For board sources use "board:id".
+                source:
+                  type: string
+                  default: remotive
+                  enum: [remotive, jobicy, arbeitnow, greenhouse, lever, ashby, remoteok, adzuna]
+                board:
+                  type: string
+                  description: Board name for greenhouse/lever/ashby.
+      responses:
+        '200':
+          description: Already imported
+        '201':
+          description: Imported and saved
+        '400':
+          description: Unknown source or missing board name
+        '404':
+          description: Listing no longer available
+        '503':
+          description: Provider unavailable
+  /jobs/import-url:
+    post:
+      tags: [Jobs]
+      summary: Read a public job page and return a reviewable draft
+      description: >-
+        Page extraction only. No job board is integrated through an API, and the
+        server never signs in, solves CAPTCHAs, or bypasses access controls. When
+        extraction fails the response contains a manual-import fallback with the
+        required fields. SSRF protection blocks non-HTTPS schemes, private and
+        reserved addresses, credentials, unusual ports, and unsafe redirects.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                save:
+                  type: boolean
+                  default: false
+                  description: Persist the extracted draft as a saved job.
+      responses:
+        '200':
+          description: Draft extracted, or manual-import fallback when not possible
+        '201':
+          description: Draft extracted and saved
+        '400':
+          description: URL blocked by the SSRF guard, or invalid input
+        '413':
+          description: Page larger than URL_IMPORT_MAX_BYTES
+        '415':
+          description: URL does not serve an HTML page
+        '429':
+          description: URL import rate limit reached
+        '502':
+          description: Page unreachable, failed TLS, or too many redirects
+        '504':
+          description: Page exceeded URL_IMPORT_TIMEOUT_MS
+  /jobs/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Jobs]
+      summary: Get a job, tracking record, and current match
+      responses:
+        '200':
+          description: Job detail
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Jobs]
+      summary: Update a job
+      responses:
+        '200':
+          description: Updated
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Jobs]
+      summary: Delete a job and its tracking record
+      responses:
+        '200':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /jobs/{id}/save:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Jobs]
+      summary: Save/bookmark a job
+      responses:
+        '200':
+          description: Already tracked
+        '201':
+          description: Saved
+    delete:
+      tags: [Jobs]
+      summary: Remove a saved job that has not progressed
+      responses:
+        '200':
+          description: Unsaved
+        '409':
+          description: Application is in progress
+  /jobs/{id}/match:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Jobs]
+      summary: Calculate explainable match for a job
+      responses:
+        '200':
+          description: Match result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      match:
+                        $ref: '#/components/schemas/Match'
+  /applications:
+    get:
+      tags: [Applications]
+      summary: List tracked applications
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Paginated applications
+    post:
+      tags: [Applications]
+      summary: Track a job application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId]
+              properties:
+                jobId:
+                  type: string
+                status:
+                  type: string
+      responses:
+        '201':
+          description: Created
+        '409':
+          description: Already tracked
+  /applications/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    patch:
+      tags: [Applications]
+      summary: Update status or notes (submitted requires the submit endpoint)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Updated
+        '400':
+          description: Use the submit endpoint for submitted status
+    delete:
+      tags: [Applications]
+      summary: Delete a tracking record
+      responses:
+        '200':
+          description: Deleted
+  /applications/{id}/preview:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Applications]
+      summary: Get a manual-application preview and verified prefill values
+      responses:
+        '200':
+          description: Preview with explicit no-automation disclosure
+  /applications/{id}/submit:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Applications]
+      summary: Record that the user submitted the application themselves
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved, confirmation]
+              properties:
+                approved:
+                  type: boolean
+                  enum: [true]
+                confirmation:
+                  type: boolean
+                  enum: [true]
+                method:
+                  type: string
+                  enum: [manual, assisted_manual]
+      responses:
+        '200':
+          description: Submission recorded
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /applications/{id}/readiness:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Applications]
+      summary: Ready for Review checklist for an application (read-only)
+      responses:
+        '200':
+          description: Readiness report; application status is never changed
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Applications]
+      summary: Ready for Review checklist with explicit form requirements
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requirements:
+                  type: object
+                  properties:
+                    coverLetter:
+                      type: string
+                      enum: [required, recommended, off]
+                    questions:
+                      type: array
+                      maxItems: 20
+                      items:
+                        type: string
+      responses:
+        '200':
+          description: Readiness report
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /applications/{id}/autofill-plan:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Autofill]
+      summary: Verified values, approved resume, and no-submit policy for the local helper
+      responses:
+        '200':
+          description: Plan with safety.autoSubmit false and finalSubmissionRequiresHuman true
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /applications/{id}/autofill-runs:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Autofill]
+      summary: List local helper run reports for an application
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            maximum: 50
+      responses:
+        '200':
+          description: Run reports, always with submitted false
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Autofill]
+      summary: Record what the local helper did (never a submission)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [adapter]
+              properties:
+                adapter:
+                  type: string
+                  enum: [greenhouse, lever, ashby, linkedin, workday, generic]
+                pageUrl:
+                  type: string
+                status:
+                  type: string
+                  enum: [prepared, needs_review, failed]
+                filledFields:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      canonical:
+                        type: string
+                      label:
+                        type: string
+                      selector:
+                        type: string
+                missingFields:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      canonical:
+                        type: string
+                      label:
+                        type: string
+                      reason:
+                        type: string
+                validationErrors:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      field:
+                        type: string
+                      message:
+                        type: string
+                unsupportedControls:
+                  type: array
+                  items:
+                    type: string
+                blockedBy:
+                  type: array
+                  items:
+                    type: string
+                    enum: [captcha, otp, mfa, login, terms, unsupported_form]
+                resumeUploaded:
+                  type: object
+                  nullable: true
+                  properties:
+                    format:
+                      type: string
+                      enum: [pdf, docx]
+                    fileName:
+                      type: string
+                coverLetterFilled:
+                  type: boolean
+                answersFilled:
+                  type: array
+                  items:
+                    type: string
+                submitted:
+                  type: boolean
+                  description: Only false is accepted; true returns 400
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Run recorded with submitted false
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /autofill/adapters:
+    get:
+      tags: [Autofill]
+      summary: List supported and unsupported portal adapters
+      responses:
+        '200':
+          description: Adapter registry with support flags and limitations
+  /autofill/adapters/detect:
+    get:
+      tags: [Autofill]
+      summary: Detect the portal adapter for an application URL
+      parameters:
+        - in: query
+          name: url
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matched adapter or the generic manual fallback
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /ai/status:
+    get:
+      tags: [AI]
+      summary: Check whether an AI provider is configured
+      responses:
+        '200':
+          description: Provider status
+  /ai/explain-match:
+    post:
+      tags: [AI]
+      summary: Explainable match without AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId]
+              properties:
+                jobId:
+                  type: string
+      responses:
+        '200':
+          description: Match result
+  /ai/cover-letter:
+    post:
+      tags: [AI]
+      summary: Generate a cover letter draft or template fallback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId]
+              properties:
+                jobId:
+                  type: string
+                tone:
+                  type: string
+                  enum: [professional, enthusiastic, concise]
+      responses:
+        '200':
+          description: Draft with provider and notice fields
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          description: AI provider unavailable; template fallback may be returned instead
+  /ai/resume-suggestions:
+    post:
+      tags: [AI]
+      summary: Generate tailored resume suggestions or deterministic fallback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId]
+              properties:
+                jobId:
+                  type: string
+      responses:
+        '200':
+          description: Suggestions with provider and notice
+  /ai/application-answers:
+    post:
+      tags: [AI]
+      summary: Draft answers to application questions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId, questions]
+              properties:
+                jobId:
+                  type: string
+                questions:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Answers with provider and notice
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Aggregated dashboard data
+      responses:
+        '200':
+          description: Stats, status breakdown, recent activity, recommendations, completion
+        '401':
+          $ref: '#/components/responses/Unauthorized'

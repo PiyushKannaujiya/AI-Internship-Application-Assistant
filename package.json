@@ -1,0 +1,21 @@
+{
+  "name": "ai-internship-application-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI internship application assistant with an Express API and React dashboard",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "test": "npm --prefix server test && npm --prefix client test",
+    "test:server": "npm --prefix server test",
+    "test:client": "npm --prefix client test",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server start",
+    "autofill:install": "npm --prefix tools/autofill install && npm --prefix tools/autofill run install-browser",
+    "autofill": "node tools/autofill/cli.js"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

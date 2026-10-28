@@ -34,6 +34,8 @@ temp/
 playwright-report/
 test-results/
 playwright/.cache/
+.autofill-profile/
+autofill-reports/
 
 # Editor and operating system files
 .vscode/
@@ -48,3 +50,10 @@ Thumbs.db
 
 # Debugging
 .nyc_output/
+
+# Tooling metadata
+.freebuff/
+.vite/
+
+# Dev screenshot artifacts used by verification runs, not shipped code
+screenshots/

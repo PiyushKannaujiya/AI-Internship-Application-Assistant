@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: ai-internship-assistant-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: BCRYPT_ROUNDS
+        value: 12
+      - key: UPLOAD_MAX_BYTES
+        value: 5242880
+      - key: AI_PROVIDER
+        value: none
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: AI_MODEL
+        value: gpt-4o-mini
+      - key: AI_TIMEOUT_MS
+        value: 30000
+      - key: JOBS_API_URL
+        value: https://remotive.com/api/remote-jobs

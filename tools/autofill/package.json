@@ -1,0 +1,17 @@
+{
+  "name": "applypilot-autofill-helper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local, visible Playwright helper that fills application forms and never submits them.",
+  "scripts": {
+    "start": "node cli.js",
+    "install-browser": "playwright install chromium"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "playwright": "^1.64.1"
+  }
+}
